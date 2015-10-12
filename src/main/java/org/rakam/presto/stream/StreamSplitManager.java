@@ -26,7 +26,6 @@ import com.facebook.presto.spi.Node;
 import com.facebook.presto.spi.NodeManager;
 import com.facebook.presto.spi.TupleDomain;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 
@@ -35,6 +34,7 @@ import javax.inject.Inject;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 import static org.rakam.presto.stream.util.Types.checkType;
 
@@ -75,7 +75,7 @@ public class StreamSplitManager
                 .sorted((x, y) -> x.getNodeIdentifier().compareTo(y.getNodeIdentifier())).toArray(Node[]::new);
 
         int idx = hashFunction.hashUnencodedChars(identifier).asInt() % nodes.length;
-        List<ConnectorSplit> splits = Lists.newArrayList();
+        List<ConnectorSplit> splits = emptyList();
         splits.add(new StreamSplit(connectorId, examplePartition.getSchemaName(), examplePartition.getTableName(), nodes[idx].getHostAndPort()));
 
         return new FixedSplitSource(connectorId, splits);

@@ -19,7 +19,6 @@ import com.facebook.presto.operator.aggregation.Accumulator;
 import com.facebook.presto.operator.aggregation.GroupedAccumulator;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.type.Type;
-import com.google.common.collect.Maps;
 import io.airlift.log.Logger;
 import org.rakam.presto.stream.analyze.QueryAnalyzer;
 import org.rakam.presto.stream.metadata.ForMetadata;
@@ -31,8 +30,8 @@ import org.skife.jdbi.v2.IDBI;
 import javax.inject.Inject;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.spi.StandardErrorCode.NOT_FOUND;
@@ -44,12 +43,12 @@ public class StreamStorageManager
     private final MetadataDao dao;
     private final QueryAnalyzer queryAnalyzer;
 
-    Map<Long, MaterializedView> tables;
+    ConcurrentHashMap<Long, MaterializedView> tables;
 
     @Inject
     public StreamStorageManager(@ForMetadata IDBI dbi, QueryAnalyzer queryAnalyzer)
     {
-        this.tables = Maps.newConcurrentMap();
+        this.tables = new ConcurrentHashMap();
         this.dao = dbi.onDemand(MetadataDao.class);
         this.queryAnalyzer = queryAnalyzer;
 //        schemas = DBMaker.newFileDB(new File("./test")).make();

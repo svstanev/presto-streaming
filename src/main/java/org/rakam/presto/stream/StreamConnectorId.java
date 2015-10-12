@@ -13,7 +13,7 @@
  */
 package org.rakam.presto.stream;
 
-import com.google.common.base.Objects;
+import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
 
@@ -49,6 +49,6 @@ public final class StreamConnectorId
         }
 
         StreamConnectorId other = (StreamConnectorId) obj;
-        return Objects.equal(this.id, other.id);
+        return Objects.equals(this.id, other.id);
     }
 }

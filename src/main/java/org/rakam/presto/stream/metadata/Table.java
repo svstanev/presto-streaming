@@ -14,12 +14,12 @@
 
 package org.rakam.presto.stream.metadata;
 
-import com.google.common.base.Objects;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Objects;
 
 public final class Table
 {
