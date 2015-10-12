@@ -13,7 +13,9 @@
  */
 package org.rakam.presto.stream;
 
+import com.facebook.presto.execution.DataDefinitionTask;
 import com.facebook.presto.metadata.MetadataManager;
+import com.facebook.presto.security.AccessControl;
 import com.facebook.presto.spi.Connector;
 import com.facebook.presto.spi.ConnectorFactory;
 import com.facebook.presto.spi.NodeManager;
@@ -21,6 +23,7 @@ import com.facebook.presto.spi.type.TypeManager;
 import com.facebook.presto.sql.analyzer.FeaturesConfig;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.optimizations.PlanOptimizer;
+import com.facebook.presto.sql.tree.Statement;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Injector;
@@ -51,8 +54,21 @@ public class StreamConnectorFactory
     private final List<PlanOptimizer> planOptimizers;
     private final String name;
     private final Module module;
+    private final AccessControl accessControl;
+    private final Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks;
 
-    public StreamConnectorFactory(String name, Module module, TypeManager typeManager, MetadataManager metadataManager, NodeManager nodeManager, List<PlanOptimizer> planOptimizers, FeaturesConfig featuresConfig, SqlParser sqlParser, Map<String, String> optionalConfig)
+    public StreamConnectorFactory(
+            String name,
+            Module module,
+            TypeManager typeManager,
+            MetadataManager metadataManager,
+            NodeManager nodeManager,
+            List<PlanOptimizer> planOptimizers,
+            FeaturesConfig featuresConfig,
+            SqlParser sqlParser,
+            Map<String, String> optionalConfig,
+            AccessControl accessControl,
+            Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks)
     {
         this.name = requireNonNull(name, "name is null");
         this.module = requireNonNull(module, "module is null");
@@ -63,6 +79,8 @@ public class StreamConnectorFactory
         this.planOptimizers = requireNonNull(planOptimizers, "planOptimizers is null");
         this.featuresConfig = requireNonNull(featuresConfig, "featuresConfig is null");
         this.sqlParser = requireNonNull(sqlParser, "sqlParser is null");
+        this.accessControl = requireNonNull(accessControl);
+        this.tasks = ImmutableMap.copyOf(requireNonNull(tasks));
     }
 
     @Override
@@ -78,8 +96,10 @@ public class StreamConnectorFactory
         requireNonNull(optionalConfig, "optionalConfig is null");
 
         try {
-            Bootstrap app = new Bootstrap(new StreamModule(connectorId),
-                    new MBeanModule(), module,
+            Bootstrap app = new Bootstrap(
+                    new StreamModule(connectorId),
+                    new MBeanModule(),
+                    module,
                     binder -> {
                         CurrentNodeId currentNodeId = new CurrentNodeId(nodeManager.getCurrentNode().getNodeIdentifier());
                         MBeanServer mbeanServer = new RebindSafeMBeanServer(getPlatformMBeanServer());
@@ -91,6 +111,10 @@ public class StreamConnectorFactory
                         binder.bind(MetadataManager.class).toInstance(metadataManager);
                         binder.bind(SqlParser.class).toInstance(sqlParser);
                         binder.bind(FeaturesConfig.class).toInstance(featuresConfig);
+                        binder.bind(AccessControl.class).toInstance(this.accessControl);
+                        binder.bind(new TypeLiteral<Map<Class<? extends Statement>, DataDefinitionTask<?>>>()
+                        {
+                        }).toInstance(this.tasks);
                         binder.bind(new TypeLiteral<List<PlanOptimizer>>()
                         {
                         }).toInstance(planOptimizers);

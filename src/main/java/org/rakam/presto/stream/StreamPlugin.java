@@ -13,7 +13,9 @@
  */
 package org.rakam.presto.stream;
 
+import com.facebook.presto.execution.DataDefinitionTask;
 import com.facebook.presto.metadata.MetadataManager;
+import com.facebook.presto.security.AccessControl;
 import com.facebook.presto.spi.ConnectorFactory;
 import com.facebook.presto.spi.NodeManager;
 import com.facebook.presto.spi.Plugin;
@@ -21,6 +23,7 @@ import com.facebook.presto.spi.type.TypeManager;
 import com.facebook.presto.sql.analyzer.FeaturesConfig;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.optimizations.PlanOptimizer;
+import com.facebook.presto.sql.tree.Statement;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Module;
@@ -49,6 +52,8 @@ public class StreamPlugin
     private List<PlanOptimizer> planOptimizers;
     private FeaturesConfig featuresConfig;
     private SqlParser sqlParser;
+    private AccessControl accessControl;
+    private Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks;
 
     public StreamPlugin()
     {
@@ -81,6 +86,18 @@ public class StreamPlugin
         this.typeManager = typeManager;
     }
 
+    @Inject
+    public synchronized void setAccessControl(AccessControl accessControl)
+    {
+        this.accessControl = accessControl;
+    }
+
+    @Inject
+    public synchronized void setTasks(Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks)
+    {
+        this.tasks = tasks;
+    }
+
     public synchronized Map<String, String> getOptionalConfig()
     {
         return optionalConfig;
@@ -98,14 +115,17 @@ public class StreamPlugin
         if (type == ConnectorFactory.class) {
             return ImmutableList.of(type.cast(
                     new StreamConnectorFactory(
-                            name, module,
+                            name,
+                            module,
                             typeManager,
                             metadataManager,
                             nodeManager,
                             planOptimizers,
                             featuresConfig,
                             sqlParser,
-                            getOptionalConfig())));
+                            getOptionalConfig(),
+                            this.accessControl,
+                            this.tasks)));
         }
         return ImmutableList.of();
     }

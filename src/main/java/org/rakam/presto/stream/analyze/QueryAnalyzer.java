@@ -58,8 +58,8 @@ public class QueryAnalyzer
     private final boolean experimentalSyntaxEnabled;
     private final MetadataManager metadataManager;
     private List<PlanOptimizer> planOptimizers;
-    private AccessControl accessControl;
-    private Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks;
+    private final AccessControl accessControl;
+    private final Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks;
 
     @Inject
     public QueryAnalyzer(
@@ -104,10 +104,10 @@ public class QueryAnalyzer
                 this.tasks,
                 experimentalSyntaxEnabled);
 
-        Analyzer analyzer = new Analyzer(session, metadataManager, sqlParser, accessControl, Optional.of(explainer), experimentalSyntaxEnabled);
+        Analyzer analyzer = new Analyzer(session, metadataManager, this.sqlParser, this.accessControl, Optional.of(explainer), experimentalSyntaxEnabled);
         Analysis analyze = analyzer.analyze(statement);
-        Plan plan = new LogicalPlanner(session, planOptimizers, new PlanNodeIdAllocator(), metadataManager).plan(analyze);
 
+        Plan plan = new LogicalPlanner(session, planOptimizers, new PlanNodeIdAllocator(), metadataManager).plan(analyze);
         SubPlan subplan = new PlanFragmenter().createSubPlans(plan);
         PlanFragment currentFragment = subplan.getFragment();
 
