@@ -32,11 +32,12 @@ import org.rakam.presto.stream.util.RebindSafeMBeanServer;
 import org.weakref.jmx.guice.MBeanModule;
 
 import javax.management.MBeanServer;
+
 import java.util.List;
 import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.management.ManagementFactory.getPlatformMBeanServer;
+import static java.util.Objects.requireNonNull;
 
 public class StreamConnectorFactory
         implements ConnectorFactory
@@ -51,16 +52,17 @@ public class StreamConnectorFactory
     private final String name;
     private final Module module;
 
-    public StreamConnectorFactory(String name, Module module, TypeManager typeManager, MetadataManager metadataManager, NodeManager nodeManager, List<PlanOptimizer> planOptimizers, FeaturesConfig featuresConfig, SqlParser sqlParser, Map<String, String> optionalConfig) {
-        this.name = checkNotNull(name, "name is null");
-        this.module = checkNotNull(module, "module is null");
-        this.typeManager = checkNotNull(typeManager, "typeManager is null");
-        this.metadataManager = checkNotNull(metadataManager, "metadataManager is null");
-        this.nodeManager = checkNotNull(nodeManager, "nodeManager is null");
-        this.optionalConfig = ImmutableMap.copyOf(checkNotNull(optionalConfig, "optionalConfig is null"));
-        this.planOptimizers = checkNotNull(planOptimizers, "planOptimizers is null");
-        this.featuresConfig = checkNotNull(featuresConfig, "featuresConfig is null");
-        this.sqlParser = checkNotNull(sqlParser, "sqlParser is null");
+    public StreamConnectorFactory(String name, Module module, TypeManager typeManager, MetadataManager metadataManager, NodeManager nodeManager, List<PlanOptimizer> planOptimizers, FeaturesConfig featuresConfig, SqlParser sqlParser, Map<String, String> optionalConfig)
+    {
+        this.name = requireNonNull(name, "name is null");
+        this.module = requireNonNull(module, "module is null");
+        this.typeManager = requireNonNull(typeManager, "typeManager is null");
+        this.metadataManager = requireNonNull(metadataManager, "metadataManager is null");
+        this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
+        this.optionalConfig = ImmutableMap.copyOf(requireNonNull(optionalConfig, "optionalConfig is null"));
+        this.planOptimizers = requireNonNull(planOptimizers, "planOptimizers is null");
+        this.featuresConfig = requireNonNull(featuresConfig, "featuresConfig is null");
+        this.sqlParser = requireNonNull(sqlParser, "sqlParser is null");
     }
 
     @Override
@@ -72,28 +74,29 @@ public class StreamConnectorFactory
     @Override
     public Connector create(final String connectorId, Map<String, String> requiredConfig)
     {
-        checkNotNull(requiredConfig, "requiredConfig is null");
-        checkNotNull(optionalConfig, "optionalConfig is null");
+        requireNonNull(requiredConfig, "requiredConfig is null");
+        requireNonNull(optionalConfig, "optionalConfig is null");
 
         try {
             Bootstrap app = new Bootstrap(new StreamModule(connectorId),
                     new MBeanModule(), module,
                     binder -> {
+                        CurrentNodeId currentNodeId = new CurrentNodeId(nodeManager.getCurrentNode().getNodeIdentifier());
+                        MBeanServer mbeanServer = new RebindSafeMBeanServer(getPlatformMBeanServer());
 
-                    CurrentNodeId currentNodeId = new CurrentNodeId(nodeManager.getCurrentNode().getNodeIdentifier());
-                    MBeanServer mbeanServer = new RebindSafeMBeanServer(getPlatformMBeanServer());
+                        binder.bind(MBeanServer.class).toInstance(mbeanServer);
+                        binder.bind(CurrentNodeId.class).toInstance(currentNodeId);
+                        binder.bind(NodeManager.class).toInstance(nodeManager);
+                        binder.bind(TypeManager.class).toInstance(typeManager);
+                        binder.bind(MetadataManager.class).toInstance(metadataManager);
+                        binder.bind(SqlParser.class).toInstance(sqlParser);
+                        binder.bind(FeaturesConfig.class).toInstance(featuresConfig);
+                        binder.bind(new TypeLiteral<List<PlanOptimizer>>()
+                        {
+                        }).toInstance(planOptimizers);
+                    });
 
-                    binder.bind(MBeanServer.class).toInstance(mbeanServer);
-                    binder.bind(CurrentNodeId.class).toInstance(currentNodeId);
-                    binder.bind(NodeManager.class).toInstance(nodeManager);
-                    binder.bind(TypeManager.class).toInstance(typeManager);
-                    binder.bind(MetadataManager.class).toInstance(metadataManager);
-                    binder.bind(SqlParser.class).toInstance(sqlParser);
-                    binder.bind(FeaturesConfig.class).toInstance(featuresConfig);
-                    binder.bind(new TypeLiteral<List<PlanOptimizer>>() {}).toInstance(planOptimizers);
-            });
-
-        Injector injector = app
+            Injector injector = app
                     .strictConfig()
                     .doNotInitializeLogging()
                     .setRequiredConfigurationProperties(requiredConfig)

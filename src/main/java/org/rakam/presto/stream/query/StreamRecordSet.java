@@ -11,6 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.rakam.presto.stream.query;
 
 import com.facebook.presto.spi.RecordCursor;
@@ -19,13 +20,13 @@ import com.facebook.presto.spi.type.Type;
 import com.google.common.collect.ImmutableList;
 import org.rakam.presto.stream.StreamColumnHandle;
 import org.rakam.presto.stream.StreamSplit;
-import org.rakam.presto.stream.storage.MaterializedView;
 import org.rakam.presto.stream.storage.GroupByRowTable;
+import org.rakam.presto.stream.storage.MaterializedView;
 import org.rakam.presto.stream.storage.SimpleRowTable;
 
 import java.util.List;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 public class StreamRecordSet implements RecordSet
 {
@@ -35,9 +36,9 @@ public class StreamRecordSet implements RecordSet
 
     public StreamRecordSet(StreamSplit split, List<StreamColumnHandle> columnHandles, MaterializedView view)
     {
-        checkNotNull(split, "split is null");
+        requireNonNull(split, "split is null");
 
-        this.columnHandles = checkNotNull(columnHandles, "column handles is null");
+        this.columnHandles = requireNonNull(columnHandles, "column handles is null");
         ImmutableList.Builder<Type> types = ImmutableList.builder();
         for (StreamColumnHandle column : columnHandles) {
             types.add(column.getColumnType());
@@ -55,9 +56,10 @@ public class StreamRecordSet implements RecordSet
     @Override
     public RecordCursor cursor()
     {
-        if(view instanceof SimpleRowTable) {
+        if (view instanceof SimpleRowTable) {
             return new SingleRowRecordCursor(columnHandles, (SimpleRowTable) view);
-        }else {
+        }
+        else {
             return new GroupByStreamRecordCursor(columnHandles, (GroupByRowTable) view);
         }
     }

@@ -14,49 +14,58 @@
 package org.rakam.presto.stream.metadata;
 
 import com.facebook.presto.Session;
+import com.facebook.presto.metadata.SessionPropertyManager;
 import com.facebook.presto.operator.GroupByHash;
 import com.facebook.presto.operator.aggregation.Accumulator;
 import com.facebook.presto.operator.aggregation.GroupedAccumulator;
 import com.facebook.presto.spi.ColumnMetadata;
-import com.facebook.presto.spi.ConnectorColumnHandle;
+import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorInsertTableHandle;
 import com.facebook.presto.spi.ConnectorMetadata;
 import com.facebook.presto.spi.ConnectorOutputTableHandle;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorTableHandle;
 import com.facebook.presto.spi.ConnectorTableMetadata;
+import com.facebook.presto.spi.ConnectorViewDefinition;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.SchemaTablePrefix;
 import com.facebook.presto.spi.StandardErrorCode;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeSignature;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
+
 import io.airlift.log.Logger;
+import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
+
 import org.rakam.presto.stream.StreamColumnHandle;
 import org.rakam.presto.stream.StreamConnectorId;
 import org.rakam.presto.stream.StreamErrorCode;
 import org.rakam.presto.stream.StreamTableHandle;
 import org.rakam.presto.stream.analyze.AggregationQuery;
 import org.rakam.presto.stream.analyze.QueryAnalyzer;
-import org.rakam.presto.stream.storage.MaterializedView;
 import org.rakam.presto.stream.storage.GroupByRowTable;
+import org.rakam.presto.stream.storage.MaterializedView;
 import org.rakam.presto.stream.storage.SimpleRowTable;
 import org.rakam.presto.stream.storage.StreamInsertTableHandle;
 import org.rakam.presto.stream.storage.StreamStorageManager;
+
 import org.skife.jdbi.v2.IDBI;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.exceptions.UnableToObtainConnectionException;
 
 import javax.inject.Inject;
+
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
@@ -70,12 +79,15 @@ import static com.facebook.presto.spi.StandardErrorCode.NOT_FOUND;
 import static com.facebook.presto.spi.block.SortOrder.ASC_NULLS_FIRST;
 import static com.facebook.presto.spi.type.TimeZoneKey.UTC_KEY;
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static java.lang.Thread.sleep;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.nCopies;
 import static java.util.Locale.ENGLISH;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
+
 import static org.rakam.presto.stream.util.Types.checkType;
 
 public class StreamMetadata
@@ -91,9 +103,10 @@ public class StreamMetadata
     private final MetadataDao dao;
 
     @Inject
-    public StreamMetadata(StreamConnectorId connectorId, @ForMetadata IDBI dbi, StreamStorageManager storageAdapter, QueryAnalyzer queryAnalyzer) throws InterruptedException {
-        this.connectorId = checkNotNull(connectorId, "connectorId is null").toString();
-        this.queryAnalyzer = checkNotNull(queryAnalyzer, "localQueryRunner is null");
+    public StreamMetadata(StreamConnectorId connectorId, @ForMetadata IDBI dbi, StreamStorageManager storageAdapter, QueryAnalyzer queryAnalyzer) throws InterruptedException
+    {
+        this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
+        this.queryAnalyzer = requireNonNull(queryAnalyzer, "localQueryRunner is null");
         this.dbi = dbi;
         this.dao = dbi.onDemand(MetadataDao.class);
         this.storageAdapter = storageAdapter;
@@ -127,7 +140,7 @@ public class StreamMetadata
 
     private ConnectorTableHandle getTableHandle(SchemaTableName tableName)
     {
-        checkNotNull(tableName, "tableName is null");
+        requireNonNull(tableName, "tableName is null");
         Table table = dao.getTableInformation(connectorId, tableName.getSchemaName(), tableName.getTableName());
         if (table == null) {
             return null;
@@ -150,7 +163,7 @@ public class StreamMetadata
     }
 
     @Override
-    public ConnectorTableMetadata getTableMetadata(ConnectorTableHandle tableHandle)
+    public ConnectorTableMetadata getTableMetadata(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         StreamTableHandle handle = checkType(tableHandle, StreamTableHandle.class, "tableHandle");
         SchemaTableName tableName = new SchemaTableName(handle.getSchemaName(), handle.getTableName());
@@ -163,7 +176,8 @@ public class StreamMetadata
         return new ConnectorTableMetadata(tableName, columns);
     }
 
-    public Table getTable(String schemaName, String tableName) {
+    public Table getTable(String schemaName, String tableName)
+    {
         return dao.getTableInformation(connectorId, schemaName, tableName);
     }
 
@@ -174,7 +188,7 @@ public class StreamMetadata
     }
 
     @Override
-    public ConnectorColumnHandle getSampleWeightColumnHandle(ConnectorTableHandle tableHandle)
+    public ColumnHandle getSampleWeightColumnHandle(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return null;
     }
@@ -187,48 +201,47 @@ public class StreamMetadata
 
     private StreamColumnHandle getColumnHandle(TableColumn tableColumn)
     {
-        return new StreamColumnHandle(connectorId, tableColumn.getColumnName(), tableColumn.getOrdinalPosition(), tableColumn.getDataType(),  tableColumn.getIsAggregationField());
+        return new StreamColumnHandle(connectorId, tableColumn.getColumnName(), tableColumn.getOrdinalPosition(), tableColumn.getDataType(), tableColumn.getIsAggregationField());
     }
 
     @Override
-    public Map<String, ConnectorColumnHandle> getColumnHandles(ConnectorTableHandle tableHandle)
+    public Map<String, ColumnHandle> getColumnHandles(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         StreamTableHandle raptorTableHandle = checkType(tableHandle, StreamTableHandle.class, "tableHandle");
-        ImmutableMap.Builder<String, ConnectorColumnHandle> builder = ImmutableMap.builder();
+        ImmutableMap.Builder<String, ColumnHandle> builder = ImmutableMap.builder();
         for (TableColumn tableColumn : dao.listTableColumns(raptorTableHandle.getTableId())) {
             builder.put(tableColumn.getColumnName(), getColumnHandle(tableColumn));
         }
         return builder.build();
     }
 
-
     @Override
     public Map<SchemaTableName, List<ColumnMetadata>> listTableColumns(ConnectorSession session, SchemaTablePrefix prefix)
     {
-        checkNotNull(prefix, "prefix is null");
+        requireNonNull(prefix, "prefix is null");
 
         ImmutableListMultimap.Builder<SchemaTableName, ColumnMetadata> columns = ImmutableListMultimap.builder();
         for (TableColumn tableColumn : dao.listTableColumns(connectorId, prefix.getSchemaName(), prefix.getTableName())) {
-            ColumnMetadata columnMetadata = new ColumnMetadata(tableColumn.getColumnName(), tableColumn.getDataType(), tableColumn.getOrdinalPosition(), false);
+            ColumnMetadata columnMetadata = new ColumnMetadata(tableColumn.getColumnName(), tableColumn.getDataType(), false);
             columns.put(tableColumn.getTable(), columnMetadata);
         }
         return Multimaps.asMap(columns.build());
     }
 
     @Override
-    public ConnectorTableHandle createTable(ConnectorSession session, ConnectorTableMetadata tableMetadata)
+    public void createTable(ConnectorSession session, ConnectorTableMetadata tableMetadata)
     {
         throw new PrestoException(StandardErrorCode.NOT_SUPPORTED, "Create table is not supported. Use create view for stream data.");
     }
 
     @Override
-    public void dropTable(ConnectorTableHandle tableHandle)
+    public void dropTable(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         throw new PrestoException(StandardErrorCode.NOT_SUPPORTED, "Create table is not supported. Use create view for stream data.");
     }
 
     @Override
-    public void renameTable(ConnectorTableHandle tableHandle, SchemaTableName newTableName)
+    public void renameTable(ConnectorSession session, ConnectorTableHandle tableHandle, SchemaTableName newTableName)
     {
         throw new PrestoException(StandardErrorCode.NOT_SUPPORTED, "Create table is not supported. Use create view for stream data.");
     }
@@ -240,7 +253,7 @@ public class StreamMetadata
     }
 
     @Override
-    public void commitCreateTable(ConnectorOutputTableHandle tableHandle, Collection<String> fragments)
+    public void commitCreateTable(ConnectorSession session, ConnectorOutputTableHandle tableHandle, Collection<Slice> fragments)
     {
         throw new PrestoException(StandardErrorCode.NOT_SUPPORTED, "Create table is not supported. Use create view for stream data.");
     }
@@ -267,7 +280,7 @@ public class StreamMetadata
             columnTypes.add(column.getDataType());
         }
 
-        String externalBatchId = session.getProperties().get("external_batch_id");
+        String externalBatchId = session.getProperty("external_batch_id", String.class);
         List<StreamColumnHandle> sortColumnHandles = getSortColumnHandles(tableId);
         return new StreamInsertTableHandle(connectorId,
                 tableId,
@@ -279,7 +292,7 @@ public class StreamMetadata
     }
 
     @Override
-    public void commitInsert(ConnectorInsertTableHandle insertHandle, Collection<String> fragments)
+    public void commitInsert(ConnectorSession session, ConnectorInsertTableHandle insertHandle, Collection<Slice> fragments)
     {
     }
 
@@ -296,15 +309,15 @@ public class StreamMetadata
         }
 
         String originalSql = tree.get("originalSql").asText();
-
-        Session session = Session.builder()
-            .setUser("user")
-            .setSource("test")
-            .setCatalog("stream")
-            .setSchema("default")
-            .setTimeZoneKey(UTC_KEY)
-            .setLocale(ENGLISH)
-            .build();
+        SessionPropertyManager sessionPropertyManager = new SessionPropertyManager();
+        Session session = Session.builder(sessionPropertyManager)
+                .setIdentity(userSession.getIdentity())
+                .setSource("test")
+                .setCatalog("stream")
+                .setSchema("default")
+                .setTimeZoneKey(UTC_KEY)
+                .setLocale(ENGLISH)
+                .build();
 
         AggregationQuery execute = queryAnalyzer.execute(session, originalSql);
 
@@ -317,7 +330,8 @@ public class StreamMetadata
             long tableId = 0;
             try {
                 tableId = dao.insertTable(connectorId, viewName.getSchemaName(), viewName.getTableName(), execute.isGroupByQuery());
-            } catch (UnableToExecuteStatementException e) {
+            }
+            catch (UnableToExecuteStatementException e) {
                 if (e.getCause() instanceof SQLException) {
                     String state = ((SQLException) e.getCause()).getSQLState();
                     if (state.startsWith("23")) {
@@ -349,7 +363,8 @@ public class StreamMetadata
             view = new SimpleRowTable(execute.aggregationFields.stream()
                     .map(x -> x.accumulatorFactory.createAccumulator())
                     .toArray(Accumulator[]::new));
-        } else {
+        }
+        else {
             GroupedAccumulator[] groupedAggregations = execute.aggregationFields.stream()
                     .map(x -> x.accumulatorFactory.createGroupedAccumulator())
                     .toArray(GroupedAccumulator[]::new);
@@ -357,7 +372,11 @@ public class StreamMetadata
             List<Type> types = execute.groupByFields.stream().map(x -> x.colType).collect(Collectors.toList());
             int[] positions = execute.groupByFields.stream().mapToInt(x -> x.position).toArray();
 
-            GroupByHash groupByHash = new GroupByHash(types, positions, Optional.empty(), 10000);
+            Optional<Integer> maskChannel = Optional.empty();
+            Optional<Integer> inputHashChannel = Optional.empty();
+            int expectedSize = 10000;
+
+            GroupByHash groupByHash = GroupByHash.createGroupByHash(types, positions, maskChannel, inputHashChannel, expectedSize);
             view = new GroupByRowTable(groupedAggregations, groupByHash, positions);
         }
 
@@ -373,17 +392,17 @@ public class StreamMetadata
     @Override
     public List<SchemaTableName> listViews(ConnectorSession session, String schemaNameOrNull)
     {
-        return Lists.newArrayList();
+        return emptyList();
     }
 
     @Override
-    public Map<SchemaTableName, String> getViews(ConnectorSession session, SchemaTablePrefix prefix)
+    public Map<SchemaTableName, ConnectorViewDefinition> getViews(ConnectorSession session, SchemaTablePrefix prefix)
     {
-        return Maps.newHashMap();
+        return emptyMap();
     }
 
     @Override
-    public ColumnMetadata getColumnMetadata(ConnectorTableHandle tableHandle, ConnectorColumnHandle columnHandle)
+    public ColumnMetadata getColumnMetadata(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle columnHandle)
     {
         long tableId = checkType(tableHandle, StreamTableHandle.class, "tableHandle").getTableId();
         String columnName = checkType(columnHandle, StreamColumnHandle.class, "columnHandle").getColumnName();
@@ -395,7 +414,8 @@ public class StreamMetadata
         return tableColumn.toColumnMetadata();
     }
 
-    public QueryAnalyzer getQueryAnalyzer() {
+    public QueryAnalyzer getQueryAnalyzer()
+    {
         return null;
     }
 }

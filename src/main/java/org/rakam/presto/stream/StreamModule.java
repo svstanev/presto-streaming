@@ -26,8 +26,8 @@ import org.rakam.presto.stream.metadata.ForMetadata;
 import org.rakam.presto.stream.metadata.StreamMetadata;
 import org.rakam.presto.stream.metadata.TableColumn;
 import org.rakam.presto.stream.query.StreamRecordSetProvider;
-import org.rakam.presto.stream.storage.StreamStorageManager;
 import org.rakam.presto.stream.storage.StreamPageSinkProvider;
+import org.rakam.presto.stream.storage.StreamStorageManager;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.IDBI;
 import org.skife.jdbi.v2.tweak.ConnectionFactory;
@@ -37,7 +37,7 @@ import javax.inject.Singleton;
 
 import static com.facebook.presto.spi.type.TypeSignature.parseTypeSignature;
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 public class StreamModule
         implements Module
@@ -46,7 +46,7 @@ public class StreamModule
 
     public StreamModule(String connectorId)
     {
-        this.connectorId = checkNotNull(connectorId, "connector id is null");
+        this.connectorId = requireNonNull(connectorId, "connector id is null");
     }
 
     @Override
@@ -63,6 +63,16 @@ public class StreamModule
         binder.bind(QueryAnalyzer.class).in(Scopes.SINGLETON);
     }
 
+    @ForMetadata
+    @Singleton
+    @Provides
+    public IDBI createDBI(@ForMetadata ConnectionFactory connectionFactory, TypeManager typeManager)
+    {
+        DBI dbi = new DBI(connectionFactory);
+        dbi.registerMapper(new TableColumn.Mapper(typeManager));
+        return dbi;
+    }
+
     public static final class TypeDeserializer
             extends FromStringDeserializer<Type>
     {
@@ -72,7 +82,7 @@ public class StreamModule
         public TypeDeserializer(TypeManager typeManager)
         {
             super(Type.class);
-            this.typeManager = checkNotNull(typeManager, "typeManager is null");
+            this.typeManager = requireNonNull(typeManager, "typeManager is null");
         }
 
         @Override
@@ -82,15 +92,5 @@ public class StreamModule
             checkArgument(type != null, "Unknown type %s", value);
             return type;
         }
-    }
-
-    @ForMetadata
-    @Singleton
-    @Provides
-    public IDBI createDBI(@ForMetadata ConnectionFactory connectionFactory, TypeManager typeManager)
-    {
-        DBI dbi = new DBI(connectionFactory);
-        dbi.registerMapper(new TableColumn.Mapper(typeManager));
-        return dbi;
     }
 }

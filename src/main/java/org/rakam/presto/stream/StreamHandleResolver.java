@@ -13,7 +13,7 @@
  */
 package org.rakam.presto.stream;
 
-import com.facebook.presto.spi.ConnectorColumnHandle;
+import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorHandleResolver;
 import com.facebook.presto.spi.ConnectorIndexHandle;
 import com.facebook.presto.spi.ConnectorInsertTableHandle;
@@ -24,7 +24,7 @@ import org.rakam.presto.stream.storage.StreamInsertTableHandle;
 
 import javax.inject.Inject;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 public class StreamHandleResolver
         implements ConnectorHandleResolver
@@ -34,7 +34,7 @@ public class StreamHandleResolver
     @Inject
     public StreamHandleResolver(StreamConnectorId clientId)
     {
-        this.connectorId = checkNotNull(clientId, "clientId is null").toString();
+        this.connectorId = requireNonNull(clientId, "clientId is null").toString();
     }
 
     @Override
@@ -44,7 +44,7 @@ public class StreamHandleResolver
     }
 
     @Override
-    public boolean canHandle(ConnectorColumnHandle columnHandle)
+    public boolean canHandle(ColumnHandle columnHandle)
     {
         return columnHandle instanceof StreamColumnHandle && ((StreamColumnHandle) columnHandle).getConnectorId().equals(connectorId);
     }
@@ -80,7 +80,7 @@ public class StreamHandleResolver
     }
 
     @Override
-    public Class<? extends ConnectorColumnHandle> getColumnHandleClass()
+    public Class<? extends ColumnHandle> getColumnHandleClass()
     {
         return StreamColumnHandle.class;
     }

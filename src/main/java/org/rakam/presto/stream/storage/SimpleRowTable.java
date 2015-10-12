@@ -11,6 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.rakam.presto.stream.storage;
 
 import com.facebook.presto.operator.aggregation.Accumulator;
@@ -24,7 +25,8 @@ public class SimpleRowTable implements MaterializedView
         this.aggregations = accumulatorMap;
     }
 
-    public Accumulator[] getAggregations() {
+    public Accumulator[] getAggregations()
+    {
         return aggregations;
     }
 }

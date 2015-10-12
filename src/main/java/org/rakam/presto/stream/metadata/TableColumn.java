@@ -1,3 +1,17 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.rakam.presto.stream.metadata;
 
 import com.facebook.presto.metadata.Signature;
@@ -12,6 +26,7 @@ import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
+
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -19,7 +34,8 @@ import java.sql.SQLException;
 import static com.facebook.presto.spi.type.TypeSignature.parseTypeSignature;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+
+import static java.util.Objects.requireNonNull;
 
 public class TableColumn
 {
@@ -27,18 +43,18 @@ public class TableColumn
     private final String columnName;
     private final int ordinalPosition;
     private final Type dataType;
-    private final @Nullable Signature signature;
+    @Nullable private final Signature signature;
     private boolean isAggregationField;
 
     public TableColumn(SchemaTableName table, String columnName, Signature signature, boolean isAggregationField, int ordinalPosition, Type dataType)
     {
-        this.table = checkNotNull(table, "table is null");
-        this.columnName = checkNotNull(columnName, "columnName is null");
+        this.table = requireNonNull(table, "table is null");
+        this.columnName = requireNonNull(columnName, "columnName is null");
         checkArgument(ordinalPosition >= 0, "ordinal position is negative");
         this.ordinalPosition = ordinalPosition;
         this.signature = signature;
         this.isAggregationField = isAggregationField;
-        this.dataType = checkNotNull(dataType, "dataType is null");
+        this.dataType = requireNonNull(dataType, "dataType is null");
     }
 
     public SchemaTableName getTable()
@@ -101,23 +117,24 @@ public class TableColumn
 
     public ColumnMetadata toColumnMetadata()
     {
-        return new ColumnMetadata(columnName, dataType, ordinalPosition, false);
+        return new ColumnMetadata(columnName, dataType, false); //ordinalPosition
     }
 
-    public boolean getIsAggregationField() {
+    public boolean getIsAggregationField()
+    {
         return isAggregationField;
     }
 
     public static class Mapper
             implements ResultSetMapper<TableColumn>
     {
+        private static final ObjectMapper mapper = new ObjectMapper();
         private final TypeManager typeManager;
-        private final static ObjectMapper mapper = new ObjectMapper();
 
         @Inject
         public Mapper(TypeManager typeManager)
         {
-            this.typeManager = checkNotNull(typeManager, "typeManager is null");
+            this.typeManager = requireNonNull(typeManager, "typeManager is null");
         }
 
         @Override
@@ -132,14 +149,14 @@ public class TableColumn
             Type type = typeManager.getType(parseTypeSignature(typeName));
             checkArgument(type != null, "Unknown type %s", typeName);
 
-
             byte[] serializedSignature = r.getBytes("signature");
 
             Signature signature = null;
-            if(serializedSignature!=null) {
+            if (serializedSignature != null) {
                 try {
                     signature = mapper.readValue(serializedSignature, Signature.class);
-                } catch (IOException e) {
+                }
+                catch (IOException e) {
                     //
                 }
             }

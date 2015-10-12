@@ -21,7 +21,7 @@ import com.google.common.collect.Lists;
 
 import java.util.List;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 public class StreamSplit
         implements ConnectorSplit
@@ -38,10 +38,10 @@ public class StreamSplit
             @JsonProperty("tableName") String tableName,
             @JsonProperty("address") HostAddress address)
     {
-        this.schemaName = checkNotNull(schemaName, "schema name is null");
-        this.connectorId = checkNotNull(connectorId, "connector id is null");
-        this.tableName = checkNotNull(tableName, "table name is null");
-        this.address = checkNotNull(address, "address name is null");
+        this.schemaName = requireNonNull(schemaName, "schema name is null");
+        this.connectorId = requireNonNull(connectorId, "connector id is null");
+        this.tableName = requireNonNull(tableName, "table name is null");
+        this.address = requireNonNull(address, "address name is null");
     }
 
     @JsonProperty
@@ -69,13 +69,14 @@ public class StreamSplit
     }
 
     @Override
-    public boolean isRemotelyAccessible() {
+    public boolean isRemotelyAccessible()
+    {
         return true;
     }
 
-
     @Override
-    public List<HostAddress> getAddresses() {
+    public List<HostAddress> getAddresses()
+    {
         return Lists.newArrayList(address);
     }
 

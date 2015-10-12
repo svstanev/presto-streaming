@@ -26,14 +26,16 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Module;
 
 import javax.inject.Inject;
+
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.Iterables.getOnlyElement;
+
+import static java.util.Objects.requireNonNull;
 
 public class StreamPlugin
         implements Plugin
@@ -53,7 +55,8 @@ public class StreamPlugin
         this(getPluginInfo());
     }
 
-    public StreamPlugin(PluginInfo info) {
+    public StreamPlugin(PluginInfo info)
+    {
         this(info.getName(), info.getModule());
     }
 
@@ -61,13 +64,15 @@ public class StreamPlugin
     {
         checkArgument(!isNullOrEmpty(name), "name is null or empty");
         this.name = name;
-        this.module = checkNotNull(module, "module is null");
+        this.module = requireNonNull(module, "module is null");
     }
 
-    @Override
-    public synchronized void setOptionalConfig(Map<String, String> optionalConfig)
+    private static PluginInfo getPluginInfo()
     {
-        this.optionalConfig = ImmutableMap.copyOf(checkNotNull(optionalConfig, "optionalConfig is null"));
+        ClassLoader classLoader = StreamPlugin.class.getClassLoader();
+        ServiceLoader<PluginInfo> loader = ServiceLoader.load(PluginInfo.class, classLoader);
+        List<PluginInfo> list = ImmutableList.copyOf(loader);
+        return list.isEmpty() ? new PluginInfo() : getOnlyElement(list);
     }
 
     @Inject
@@ -79,6 +84,12 @@ public class StreamPlugin
     public synchronized Map<String, String> getOptionalConfig()
     {
         return optionalConfig;
+    }
+
+    @Override
+    public synchronized void setOptionalConfig(Map<String, String> optionalConfig)
+    {
+        this.optionalConfig = ImmutableMap.copyOf(requireNonNull(optionalConfig, "optionalConfig is null"));
     }
 
     @Override
@@ -127,13 +138,5 @@ public class StreamPlugin
     public void setSqlParser(SqlParser sqlParser)
     {
         this.sqlParser = sqlParser;
-    }
-
-    private static PluginInfo getPluginInfo()
-    {
-        ClassLoader classLoader = StreamPlugin.class.getClassLoader();
-        ServiceLoader<PluginInfo> loader = ServiceLoader.load(PluginInfo.class, classLoader);
-        List<PluginInfo> list = ImmutableList.copyOf(loader);
-        return list.isEmpty() ? new PluginInfo() : getOnlyElement(list);
     }
 }

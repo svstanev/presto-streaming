@@ -11,6 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.rakam.presto.stream.storage;
 
 import com.facebook.presto.operator.GroupByHash;
@@ -28,6 +29,7 @@ import org.rakam.presto.stream.metadata.TableColumn;
 import org.skife.jdbi.v2.IDBI;
 
 import javax.inject.Inject;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,13 +55,15 @@ public class StreamStorageManager
 //        schemas = DBMaker.newFileDB(new File("./test")).make();
     }
 
-    public void addMaterializedView(long tableId, MaterializedView view) {
+    public void addMaterializedView(long tableId, MaterializedView view)
+    {
         tables.put(tableId, view);
     }
 
-    public MaterializedView get(long tableId) {
+    public MaterializedView get(long tableId)
+    {
         MaterializedView materializedView = tables.get(tableId);
-        if(materializedView==null) {
+        if (materializedView == null) {
             log.warn("Table couldn't found. Creating new one from table metadata. ");
             MaterializedView value = reGenerateTable(tableId);
             tables.put(tableId, value);
@@ -68,7 +72,8 @@ public class StreamStorageManager
         return materializedView;
     }
 
-    private MaterializedView reGenerateTable(long tableId) {
+    private MaterializedView reGenerateTable(long tableId)
+    {
         List<TableColumn> columns = getColumnsOfTable(tableId);
 
         boolean isGroupByQuery = columns.stream().anyMatch(x -> !x.getIsAggregationField());
@@ -77,7 +82,8 @@ public class StreamStorageManager
             return new SimpleRowTable(columns.stream()
                     .map(x -> queryAnalyzer.getAccumulatorFactory(x.getSignature()).createAccumulator())
                     .toArray(Accumulator[]::new));
-        } else {
+        }
+        else {
             GroupedAccumulator[] groupedAggregations = columns.stream()
                     .filter(x -> x.getIsAggregationField())
                     .map(x -> queryAnalyzer.getAccumulatorFactory(x.getSignature()).createGroupedAccumulator())
@@ -90,7 +96,11 @@ public class StreamStorageManager
                     .filter(x -> !x.getIsAggregationField())
                     .mapToInt(x -> x.getOrdinalPosition()).toArray();
 
-            GroupByHash groupByHash = new GroupByHash(types, positions, Optional.empty(), 10000);
+            Optional<Integer> maskChannel = Optional.empty();
+            Optional<Integer> inputHashChannel = Optional.empty();
+            int expectedSize = 10000;
+
+            GroupByHash groupByHash = GroupByHash.createGroupByHash(types, positions, maskChannel, inputHashChannel, expectedSize);
             return new GroupByRowTable(groupedAggregations, groupByHash, positions);
         }
     }

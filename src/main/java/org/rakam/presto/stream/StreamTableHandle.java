@@ -20,7 +20,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 public final class StreamTableHandle
         implements ConnectorTableHandle
@@ -37,13 +37,14 @@ public final class StreamTableHandle
             @JsonProperty("tableName") String tableName,
             @JsonProperty("tableId") long tableId)
     {
-        this.connectorId = checkNotNull(connectorId, "connectorId is null");
-        this.schemaName = checkNotNull(schemaName, "schemaName is null");
-        this.tableName = checkNotNull(tableName, "tableName is null");
+        this.connectorId = requireNonNull(connectorId, "connectorId is null");
+        this.schemaName = requireNonNull(schemaName, "schemaName is null");
+        this.tableName = requireNonNull(tableName, "tableName is null");
         this.tableId = tableId;
     }
 
-    public SchemaTableName getSchema() {
+    public SchemaTableName getSchema()
+    {
         return new SchemaTableName(schemaName, tableName);
     }
 
@@ -54,7 +55,8 @@ public final class StreamTableHandle
     }
 
     @JsonProperty
-    public long getTableId() {
+    public long getTableId()
+    {
         return tableId;
     }
 

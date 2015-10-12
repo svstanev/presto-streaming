@@ -13,9 +13,10 @@
  */
 package org.rakam.presto.stream;
 
-import com.facebook.presto.spi.ConnectorColumnHandle;
+import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorPartition;
 import com.facebook.presto.spi.ConnectorPartitionResult;
+import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.ConnectorSplitManager;
 import com.facebook.presto.spi.ConnectorSplitSource;
@@ -30,28 +31,29 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 
 import javax.inject.Inject;
+
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.rakam.presto.stream.util.Types.checkType;
 
 public class StreamSplitManager
         implements ConnectorSplitManager
 {
+    private static final HashFunction hashFunction = Hashing.murmur3_128();
     private final String connectorId;
     private final NodeManager nodeManager;
-    private static final HashFunction hashFunction = Hashing.murmur3_128();
 
     @Inject
     public StreamSplitManager(StreamConnectorId connectorId, NodeManager nodeManager)
     {
-        this.connectorId = checkNotNull(connectorId, "connectorId is null").toString();
-        this.nodeManager = checkNotNull(nodeManager, "nodeManager is null");
+        this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
+        this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
     }
 
     @Override
-    public ConnectorPartitionResult getPartitions(ConnectorTableHandle tableHandle, TupleDomain<ConnectorColumnHandle> tupleDomain)
+    public ConnectorPartitionResult getPartitions(ConnectorSession session, ConnectorTableHandle tableHandle, TupleDomain<ColumnHandle> tupleDomain)
     {
         StreamTableHandle streamTableHandle = checkType(tableHandle, StreamTableHandle.class, "tableHandle");
 
@@ -60,9 +62,9 @@ public class StreamSplitManager
     }
 
     @Override
-    public ConnectorSplitSource getPartitionSplits(ConnectorTableHandle tableHandle, List<ConnectorPartition> partitions)
+    public ConnectorSplitSource getPartitionSplits(ConnectorSession session, ConnectorTableHandle tableHandle, List<ConnectorPartition> partitions)
     {
-        checkNotNull(partitions, "partitions is null");
+        requireNonNull(partitions, "partitions is null");
         checkArgument(partitions.size() == 1, "Expected one partition but got %s", partitions.size());
         ConnectorPartition partition = partitions.get(0);
 
@@ -70,7 +72,7 @@ public class StreamSplitManager
 
         String identifier = examplePartition.getSchemaName() + ":" + examplePartition.getTableName();
         Node[] nodes = nodeManager.getActiveNodes().stream()
-                .sorted((x,y) -> x.getNodeIdentifier().compareTo(y.getNodeIdentifier())).toArray(Node[]::new);
+                .sorted((x, y) -> x.getNodeIdentifier().compareTo(y.getNodeIdentifier())).toArray(Node[]::new);
 
         int idx = hashFunction.hashUnencodedChars(identifier).asInt() % nodes.length;
         List<ConnectorSplit> splits = Lists.newArrayList();

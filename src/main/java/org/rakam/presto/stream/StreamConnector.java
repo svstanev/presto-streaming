@@ -28,10 +28,10 @@ import org.rakam.presto.stream.storage.StreamPageSinkProvider;
 
 import javax.inject.Inject;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 public class StreamConnector
-    implements Connector
+        implements Connector
 {
     private final StreamMetadata metadata;
     private final StreamSplitManager splitManager;
@@ -47,11 +47,11 @@ public class StreamConnector
             StreamPageSinkProvider pageSinkProvider,
             StreamHandleResolver handleResolver)
     {
-        this.metadata = checkNotNull(metadata, "metadata is null");
-        this.splitManager = checkNotNull(splitManager, "splitManager is null");
-        this.recordSetProvider = checkNotNull(recordSetProvider, "recordSetProvider is null");
-        this.pageSinkProvider = checkNotNull(pageSinkProvider, "pageSinkProvider is null");
-        this.handleResolver = checkNotNull(handleResolver, "handleResolver is null");
+        this.metadata = requireNonNull(metadata, "metadata is null");
+        this.splitManager = requireNonNull(splitManager, "splitManager is null");
+        this.recordSetProvider = requireNonNull(recordSetProvider, "recordSetProvider is null");
+        this.pageSinkProvider = requireNonNull(pageSinkProvider, "pageSinkProvider is null");
+        this.handleResolver = requireNonNull(handleResolver, "handleResolver is null");
     }
 
     @Override
@@ -91,7 +91,8 @@ public class StreamConnector
     }
 
     @Override
-    public ConnectorPageSinkProvider getPageSinkProvider() {
+    public ConnectorPageSinkProvider getPageSinkProvider()
+    {
         return pageSinkProvider;
     }
 

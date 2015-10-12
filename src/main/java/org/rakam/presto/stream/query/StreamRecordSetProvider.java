@@ -11,10 +11,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.rakam.presto.stream.query;
 
-import com.facebook.presto.spi.ConnectorColumnHandle;
+import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorRecordSetProvider;
+import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.RecordSet;
 import com.google.common.collect.ImmutableList;
@@ -27,10 +29,11 @@ import org.rakam.presto.stream.storage.MaterializedView;
 import org.rakam.presto.stream.storage.StreamStorageManager;
 
 import javax.inject.Inject;
+
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.rakam.presto.stream.util.Types.checkType;
 
 public class StreamRecordSetProvider
@@ -43,20 +46,20 @@ public class StreamRecordSetProvider
     @Inject
     public StreamRecordSetProvider(StreamConnectorId connectorId, StreamMetadata metadata, StreamStorageManager storage)
     {
-        this.connectorId = checkNotNull(connectorId, "connectorId is null").toString();
-        this.metadata = checkNotNull(metadata, "metadata is null");
-        this.storage = checkNotNull(storage, "storage is null");
+        this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
+        this.metadata = requireNonNull(metadata, "metadata is null");
+        this.storage = requireNonNull(storage, "storage is null");
     }
 
     @Override
-    public RecordSet getRecordSet(ConnectorSplit split, List<? extends ConnectorColumnHandle> columns)
+    public RecordSet getRecordSet(ConnectorSession session, ConnectorSplit split, List<? extends ColumnHandle> columns)
     {
-        checkNotNull(split, "partitionChunk is null");
+        requireNonNull(split, "partitionChunk is null");
         StreamSplit streamSplit = checkType(split, StreamSplit.class, "split");
         checkArgument(streamSplit.getConnectorId().equals(connectorId), "split is not for this connector");
 
         ImmutableList.Builder<StreamColumnHandle> handles = ImmutableList.builder();
-        for (ConnectorColumnHandle handle : columns) {
+        for (ColumnHandle handle : columns) {
             handles.add(checkType(handle, StreamColumnHandle.class, "handle"));
         }
 

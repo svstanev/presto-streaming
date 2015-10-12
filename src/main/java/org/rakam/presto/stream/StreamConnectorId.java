@@ -15,7 +15,7 @@ package org.rakam.presto.stream;
 
 import com.google.common.base.Objects;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 public final class StreamConnectorId
 {
@@ -23,7 +23,7 @@ public final class StreamConnectorId
 
     public StreamConnectorId(String id)
     {
-        this.id = checkNotNull(id, "id is null");
+        this.id = requireNonNull(id, "id is null");
     }
 
     @Override

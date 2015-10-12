@@ -11,14 +11,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.rakam.presto.stream.analyze;
 
 import com.facebook.presto.Session;
+import com.facebook.presto.execution.DataDefinitionTask;
 import com.facebook.presto.metadata.FunctionInfo;
 import com.facebook.presto.metadata.MetadataManager;
 import com.facebook.presto.metadata.Signature;
 import com.facebook.presto.operator.aggregation.AccumulatorFactory;
 import com.facebook.presto.operator.aggregation.InternalAggregationFunction;
+import com.facebook.presto.security.AccessControl;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.StandardErrorCode;
 import com.facebook.presto.spi.type.Type;
@@ -55,17 +58,28 @@ public class QueryAnalyzer
     private final boolean experimentalSyntaxEnabled;
     private final MetadataManager metadataManager;
     private List<PlanOptimizer> planOptimizers;
+    private AccessControl accessControl;
+    private Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks;
 
     @Inject
-    public QueryAnalyzer(List<PlanOptimizer> planOptimizers, FeaturesConfig featuresConfig, SqlParser sqlParser, MetadataManager metadataManager)
+    public QueryAnalyzer(
+            List<PlanOptimizer> planOptimizers,
+            AccessControl accessControl,
+            FeaturesConfig featuresConfig,
+            SqlParser sqlParser,
+            MetadataManager metadataManager,
+            Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks)
     {
         this.sqlParser = sqlParser;
         this.planOptimizers = planOptimizers;
         this.metadataManager = metadataManager;
         this.experimentalSyntaxEnabled = featuresConfig.isExperimentalSyntaxEnabled();
+        this.accessControl = accessControl;
+        this.tasks = tasks;
     }
 
-    public AccumulatorFactory getAccumulatorFactory(Signature signature) {
+    public AccumulatorFactory getAccumulatorFactory(Signature signature)
+    {
         FunctionInfo exactFunction = metadataManager.getExactFunction(signature);
         InternalAggregationFunction aggregationFunction = exactFunction.getAggregationFunction();
         return aggregationFunction
@@ -78,12 +92,19 @@ public class QueryAnalyzer
 
         QuerySpecification queryBody = (QuerySpecification) ((Query) statement).getQueryBody();
 
-
-        if(queryBody.getSelect().isDistinct())
+        if (queryBody.getSelect().isDistinct()) {
             throw new PrestoException(StandardErrorCode.NOT_SUPPORTED, "Distinct query is not supported");
+        }
 
-        QueryExplainer explainer = new QueryExplainer(session, planOptimizers, metadataManager, sqlParser, experimentalSyntaxEnabled);
-        Analyzer analyzer = new Analyzer(session, metadataManager, sqlParser, Optional.of(explainer), experimentalSyntaxEnabled);
+        QueryExplainer explainer = new QueryExplainer(
+                this.planOptimizers,
+                this.metadataManager,
+                this.accessControl,
+                this.sqlParser,
+                this.tasks,
+                experimentalSyntaxEnabled);
+
+        Analyzer analyzer = new Analyzer(session, metadataManager, sqlParser, accessControl, Optional.of(explainer), experimentalSyntaxEnabled);
         Analysis analyze = analyzer.analyze(statement);
         Plan plan = new LogicalPlanner(session, planOptimizers, new PlanNodeIdAllocator(), metadataManager).plan(analyze);
 
@@ -122,11 +143,11 @@ public class QueryAnalyzer
 
         boolean groupBy = !queryBody.getGroupBy().isEmpty();
 
-        if(groupBy && groupByFields.isEmpty()) {
+        if (groupBy && groupByFields.isEmpty()) {
             throw new PrestoException(StandardErrorCode.INVALID_VIEW, "Group by queries must include at least one group by column.");
         }
 
-        return new AggregationQuery(aggregationFields, groupByFields, queryBody.getOrderBy(),  queryBody.getLimit());
+        return new AggregationQuery(aggregationFields, groupByFields, queryBody.getOrderBy(), queryBody.getLimit());
     }
 
     private void plan(SubPlan root, AggregationQueryPlanVisitor visitor)
@@ -140,26 +161,30 @@ public class QueryAnalyzer
         }
     }
 
-    public static class GroupByField {
+    public static class GroupByField
+    {
         public final int position;
         public final Type colType;
         public final String colName;
 
-        public GroupByField(int position, String colName, Type colType) {
+        public GroupByField(int position, String colName, Type colType)
+        {
             this.position = position;
             this.colType = colType;
             this.colName = colName;
         }
     }
 
-    public static class AggregationField {
+    public static class AggregationField
+    {
         public final int position;
         public final Type colType;
         public final String colName;
         public final Signature functionSignature;
         public final AccumulatorFactory accumulatorFactory;
 
-        public AggregationField(int position, String colName, Type colType, Signature functionSignature, AccumulatorFactory accumulatorFactory) {
+        public AggregationField(int position, String colName, Type colType, Signature functionSignature, AccumulatorFactory accumulatorFactory)
+        {
             this.position = position;
             this.colName = colName;
             this.colType = colType;

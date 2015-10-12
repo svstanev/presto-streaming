@@ -13,12 +13,12 @@
  */
 package org.rakam.presto.stream;
 
-import com.facebook.presto.spi.ConnectorColumnHandle;
+import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorPartition;
 import com.facebook.presto.spi.TupleDomain;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 public class StreamPartition
         implements ConnectorPartition
@@ -28,8 +28,8 @@ public class StreamPartition
 
     public StreamPartition(String schemaName, String tableName)
     {
-        this.schemaName = checkNotNull(schemaName, "schema name is null");
-        this.tableName = checkNotNull(tableName, "table name is null");
+        this.schemaName = requireNonNull(schemaName, "schema name is null");
+        this.tableName = requireNonNull(tableName, "table name is null");
     }
 
     @Override
@@ -49,7 +49,7 @@ public class StreamPartition
     }
 
     @Override
-    public TupleDomain<ConnectorColumnHandle> getTupleDomain()
+    public TupleDomain<ColumnHandle> getTupleDomain()
     {
         return TupleDomain.all();
     }

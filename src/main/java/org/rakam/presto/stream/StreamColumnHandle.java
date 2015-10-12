@@ -13,15 +13,15 @@
  */
 package org.rakam.presto.stream;
 
-import com.facebook.presto.spi.ConnectorColumnHandle;
+import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.type.Type;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 public final class StreamColumnHandle
-        implements ConnectorColumnHandle
+        implements ColumnHandle
 {
     private final String connectorId;
     private final String columnName;
@@ -37,9 +37,9 @@ public final class StreamColumnHandle
             @JsonProperty("columnType") Type columnType,
             @JsonProperty("isAggregationField") boolean isAggregationField)
     {
-        this.connectorId = checkNotNull(connectorId, "connectorId is null");
-        this.columnName = checkNotNull(columnName, "columnName is null");
-        this.columnType = checkNotNull(columnType, "columnType is null");
+        this.connectorId = requireNonNull(connectorId, "connectorId is null");
+        this.columnName = requireNonNull(columnName, "columnName is null");
+        this.columnType = requireNonNull(columnType, "columnType is null");
         this.columnOrdinal = columnOrdinal;
         this.isAggregationField = isAggregationField;
     }
@@ -99,7 +99,8 @@ public final class StreamColumnHandle
         return java.util.Objects.hashCode(columnName);
     }
 
-    public Type getType() {
+    public Type getType()
+    {
         return columnType;
     }
 }

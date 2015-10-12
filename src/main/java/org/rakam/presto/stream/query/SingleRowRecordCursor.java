@@ -11,6 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.rakam.presto.stream.query;
 
 import com.facebook.presto.operator.aggregation.Accumulator;
@@ -34,7 +35,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 public class SingleRowRecordCursor
         implements RecordCursor
 {
-
     private final List<StreamColumnHandle> columnHandles;
     private final Accumulator[] table;
     boolean firstRow = true;
@@ -73,7 +73,7 @@ public class SingleRowRecordCursor
     @Override
     public boolean advanceNextPosition()
     {
-        if(firstRow) {
+        if (firstRow) {
             firstRow = false;
             return true;
         }
@@ -111,6 +111,12 @@ public class SingleRowRecordCursor
         table[field].evaluateFinal(blockBuilder);
         Block build = blockBuilder.build();
         return build.getSlice(0, 0, build.getLength(0));
+    }
+
+    @Override
+    public Object getObject(int field)
+    {
+        throw new UnsupportedOperationException(); //return null;
     }
 
     @Override

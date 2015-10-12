@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.facebook.presto</groupId>
         <artifactId>presto-root</artifactId>
-        <version>0.97-SNAPSHOT</version>
+        <version>0.122-SNAPSHOT</version>
     </parent>
 
     <artifactId>presto-streaming</artifactId>
@@ -111,11 +111,11 @@
             <scope>provided</scope>
         </dependency>
 
-        <dependency>
+        <!--<dependency>
             <groupId>com.esotericsoftware</groupId>
             <artifactId>kryo</artifactId>
-            <version>3.0.0</version>
-        </dependency>
+            <version>3.0.3</version>
+        </dependency>-->
 
         <dependency>
             <groupId>javax.validation</groupId>

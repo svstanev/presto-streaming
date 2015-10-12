@@ -11,18 +11,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.rakam.presto.stream.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 
-final public class Types
+public final class Types
 {
-    private Types() {}
+    private Types()
+    {
+    }
 
     public static <A, B extends A> B checkType(A value, Class<B> target, String name)
     {
-        checkNotNull(value, "%s is null", name);
+        requireNonNull(value, format("%s is null", name));
         checkArgument(target.isInstance(value),
                 "%s must be of type %s, not %s",
                 name,
