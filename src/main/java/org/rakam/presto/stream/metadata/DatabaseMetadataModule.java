@@ -17,8 +17,8 @@ package org.rakam.presto.stream.metadata;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.airlift.dbpool.H2EmbeddedDataSourceModule;
-import io.airlift.dbpool.MySqlDataSourceModule;
+//import io.airlift.dbpool.H2EmbeddedDataSourceModule;
+//import io.airlift.dbpool.MySqlDataSourceModule;
 import org.skife.jdbi.v2.tweak.ConnectionFactory;
 
 import javax.inject.Singleton;
@@ -51,7 +51,9 @@ public class DatabaseMetadataModule
     private void bindDataSource(String type, Class<? extends Annotation> annotation)
     {
         String property = type + ".db.type";
-        install(installIfPropertyEquals(new MySqlDataSourceModule(type, annotation), property, "mysql"));
-        install(installIfPropertyEquals(new H2EmbeddedDataSourceModule(type, annotation), property, "h2"));
+        install(installIfPropertyEquals(new MySqlDataSourceModule(annotation), property, "mysql"));
+
+        //install(installIfPropertyEquals(new MySqlDataSourceModule(type, annotation), property, "mysql"));
+        //install(installIfPropertyEquals(new H2EmbeddedDataSourceModule(type, annotation), property, "h2"));
     }
 }
