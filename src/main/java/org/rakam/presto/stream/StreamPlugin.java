@@ -26,7 +26,11 @@ import com.facebook.presto.sql.planner.optimizations.PlanOptimizer;
 import com.facebook.presto.sql.tree.Statement;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Binder;
 import com.google.inject.Module;
+import com.google.inject.TypeLiteral;
+import io.airlift.discovery.client.ServiceSelectorFactory;
+import org.rakam.presto.stream.util.CurrentNodeId;
 
 import javax.inject.Inject;
 
@@ -44,7 +48,6 @@ public class StreamPlugin
         implements Plugin
 {
     private final String name;
-    private final Module module;
     private TypeManager typeManager;
     private Map<String, String> optionalConfig = ImmutableMap.of();
     private NodeManager nodeManager;
@@ -54,6 +57,7 @@ public class StreamPlugin
     private SqlParser sqlParser;
     private AccessControl accessControl;
     private Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks;
+    private ServiceSelectorFactory serviceSelectorFactory;
 
     public StreamPlugin()
     {
@@ -62,14 +66,14 @@ public class StreamPlugin
 
     public StreamPlugin(PluginInfo info)
     {
-        this(info.getName(), info.getModule());
+        this(info.getName());
     }
 
-    public StreamPlugin(String name, Module module)
+    public StreamPlugin(String name)
     {
         checkArgument(!isNullOrEmpty(name), "name is null or empty");
+
         this.name = name;
-        this.module = requireNonNull(module, "module is null");
     }
 
     private static PluginInfo getPluginInfo()
@@ -80,27 +84,9 @@ public class StreamPlugin
         return list.isEmpty() ? new PluginInfo() : getOnlyElement(list);
     }
 
-    @Inject
-    public synchronized void setTypeManager(TypeManager typeManager)
-    {
-        this.typeManager = typeManager;
-    }
-
-    @Inject
-    public synchronized void setAccessControl(AccessControl accessControl)
-    {
-        this.accessControl = accessControl;
-    }
-
-    @Inject
-    public synchronized void setTasks(Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks)
-    {
-        this.tasks = tasks;
-    }
-
     public synchronized Map<String, String> getOptionalConfig()
     {
-        return optionalConfig;
+        return this.optionalConfig;
     }
 
     @Override
@@ -115,17 +101,10 @@ public class StreamPlugin
         if (type == ConnectorFactory.class) {
             return ImmutableList.of(type.cast(
                     new StreamConnectorFactory(
-                            name,
-                            module,
-                            typeManager,
-                            metadataManager,
-                            nodeManager,
-                            planOptimizers,
-                            featuresConfig,
-                            sqlParser,
-                            getOptionalConfig(),
-                            this.accessControl,
-                            this.tasks)));
+                            this.name,
+                            new ExtDependenciesModule(this),    //this.module,
+                            this.getOptionalConfig()
+                    )));
         }
         return ImmutableList.of();
     }
@@ -158,5 +137,62 @@ public class StreamPlugin
     public void setSqlParser(SqlParser sqlParser)
     {
         this.sqlParser = sqlParser;
+    }
+
+    @Inject
+    public synchronized void setTypeManager(TypeManager typeManager)
+    {
+        this.typeManager = typeManager;
+    }
+
+    @Inject
+    public synchronized void setAccessControl(AccessControl accessControl)
+    {
+        this.accessControl = accessControl;
+    }
+
+    @Inject
+    public synchronized void setTasks(Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks)
+    {
+        this.tasks = tasks;
+    }
+
+    @Inject
+    public synchronized void setServiceSelectorFactory(ServiceSelectorFactory serviceSelectorFactory)
+    {
+        this.serviceSelectorFactory = serviceSelectorFactory;
+    }
+
+    class ExtDependenciesModule implements Module
+    {
+        private final StreamPlugin owner;
+
+        ExtDependenciesModule(StreamPlugin owner)
+        {
+            this.owner = owner;
+        }
+
+        @Override
+        public void configure(Binder binder)
+        {
+            CurrentNodeId currentNodeId = new CurrentNodeId(this.owner.nodeManager.getCurrentNode().getNodeIdentifier());
+
+            binder.bind(CurrentNodeId.class).toInstance(currentNodeId);
+            binder.bind(NodeManager.class).toInstance(this.owner.nodeManager);
+            binder.bind(TypeManager.class).toInstance(this.owner.typeManager);
+            binder.bind(MetadataManager.class).toInstance(this.owner.metadataManager);
+            binder.bind(SqlParser.class).toInstance(this.owner.sqlParser);
+            binder.bind(FeaturesConfig.class).toInstance(this.owner.featuresConfig);
+            binder.bind(AccessControl.class).toInstance(this.owner.accessControl);
+            binder.bind(ServiceSelectorFactory.class).toInstance(this.owner.serviceSelectorFactory);
+
+            binder.bind(new TypeLiteral<Map<Class<? extends Statement>, DataDefinitionTask<?>>>()
+            {
+            }).toInstance(this.owner.tasks);
+
+            binder.bind(new TypeLiteral<List<PlanOptimizer>>()
+            {
+            }).toInstance(this.owner.planOptimizers);
+        }
     }
 }

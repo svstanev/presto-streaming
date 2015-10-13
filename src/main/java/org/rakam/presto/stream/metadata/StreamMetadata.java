@@ -101,7 +101,11 @@ public class StreamMetadata
     private final MetadataDao dao;
 
     @Inject
-    public StreamMetadata(StreamConnectorId connectorId, @ForMetadata IDBI dbi, StreamStorageManager storageAdapter, QueryAnalyzer queryAnalyzer) throws InterruptedException
+    public StreamMetadata(
+            StreamConnectorId connectorId,
+            @ForMetadata IDBI dbi,
+            StreamStorageManager storageAdapter,
+            QueryAnalyzer queryAnalyzer) throws InterruptedException
     {
         this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
         this.queryAnalyzer = requireNonNull(queryAnalyzer, "localQueryRunner is null");
@@ -112,8 +116,8 @@ public class StreamMetadata
         Duration delay = new Duration(10, TimeUnit.SECONDS);
         while (true) {
             try {
-                dao.createTableTables();
-                dao.createTableColumns();
+                this.dao.createTableTables();
+                this.dao.createTableColumns();
                 return;
             }
             catch (UnableToObtainConnectionException e) {
@@ -127,34 +131,34 @@ public class StreamMetadata
     @Override
     public List<String> listSchemaNames(ConnectorSession session)
     {
-        return dao.listSchemaNames(connectorId);
+        return this.dao.listSchemaNames(this.connectorId);
     }
 
     @Override
     public ConnectorTableHandle getTableHandle(ConnectorSession session, SchemaTableName tableName)
     {
-        return getTableHandle(tableName);
+        return this.getTableHandle(tableName);
     }
 
     private ConnectorTableHandle getTableHandle(SchemaTableName tableName)
     {
         requireNonNull(tableName, "tableName is null");
-        Table table = dao.getTableInformation(connectorId, tableName.getSchemaName(), tableName.getTableName());
+        Table table = this.dao.getTableInformation(this.connectorId, tableName.getSchemaName(), tableName.getTableName());
         if (table == null) {
             return null;
         }
-        List<TableColumn> tableColumns = dao.getTableColumns(table.getTableId());
+        List<TableColumn> tableColumns = this.dao.getTableColumns(table.getTableId());
         checkArgument(!tableColumns.isEmpty(), "Table %s does not have any columns", tableName);
 
         StreamColumnHandle countColumnHandle = null;
         for (TableColumn tableColumn : tableColumns) {
             if (countColumnHandle == null && tableColumn.getDataType().getJavaType().isPrimitive()) {
-                countColumnHandle = getColumnHandle(tableColumn);
+                countColumnHandle = this.getColumnHandle(tableColumn);
             }
         }
 
         return new StreamTableHandle(
-                connectorId,
+                this.connectorId,
                 tableName.getSchemaName(),
                 tableName.getTableName(),
                 table.getTableId());
@@ -165,7 +169,7 @@ public class StreamMetadata
     {
         StreamTableHandle handle = checkType(tableHandle, StreamTableHandle.class, "tableHandle");
         SchemaTableName tableName = new SchemaTableName(handle.getSchemaName(), handle.getTableName());
-        List<ColumnMetadata> columns = dao.getTableColumns(handle.getTableId()).stream()
+        List<ColumnMetadata> columns = this.dao.getTableColumns(handle.getTableId()).stream()
                 .map(TableColumn::toColumnMetadata)
                 .collect(toList());
         if (columns.isEmpty()) {
@@ -176,13 +180,13 @@ public class StreamMetadata
 
     public Table getTable(String schemaName, String tableName)
     {
-        return dao.getTableInformation(connectorId, schemaName, tableName);
+        return this.dao.getTableInformation(this.connectorId, schemaName, tableName);
     }
 
     @Override
     public List<SchemaTableName> listTables(ConnectorSession session, String schemaNameOrNull)
     {
-        return dao.listTables(connectorId, schemaNameOrNull);
+        return this.dao.listTables(this.connectorId, schemaNameOrNull);
     }
 
     @Override
@@ -199,7 +203,7 @@ public class StreamMetadata
 
     private StreamColumnHandle getColumnHandle(TableColumn tableColumn)
     {
-        return new StreamColumnHandle(connectorId, tableColumn.getColumnName(), tableColumn.getOrdinalPosition(), tableColumn.getDataType(), tableColumn.getIsAggregationField());
+        return new StreamColumnHandle(this.connectorId, tableColumn.getColumnName(), tableColumn.getOrdinalPosition(), tableColumn.getDataType(), tableColumn.getIsAggregationField());
     }
 
     @Override
@@ -207,8 +211,8 @@ public class StreamMetadata
     {
         StreamTableHandle raptorTableHandle = checkType(tableHandle, StreamTableHandle.class, "tableHandle");
         ImmutableMap.Builder<String, ColumnHandle> builder = ImmutableMap.builder();
-        for (TableColumn tableColumn : dao.listTableColumns(raptorTableHandle.getTableId())) {
-            builder.put(tableColumn.getColumnName(), getColumnHandle(tableColumn));
+        for (TableColumn tableColumn : this.dao.listTableColumns(raptorTableHandle.getTableId())) {
+            builder.put(tableColumn.getColumnName(), this.getColumnHandle(tableColumn));
         }
         return builder.build();
     }
@@ -219,7 +223,7 @@ public class StreamMetadata
         requireNonNull(prefix, "prefix is null");
 
         ImmutableListMultimap.Builder<SchemaTableName, ColumnMetadata> columns = ImmutableListMultimap.builder();
-        for (TableColumn tableColumn : dao.listTableColumns(connectorId, prefix.getSchemaName(), prefix.getTableName())) {
+        for (TableColumn tableColumn : this.dao.listTableColumns(this.connectorId, prefix.getSchemaName(), prefix.getTableName())) {
             ColumnMetadata columnMetadata = new ColumnMetadata(tableColumn.getColumnName(), tableColumn.getDataType(), false);
             columns.put(tableColumn.getTable(), columnMetadata);
         }
@@ -259,8 +263,8 @@ public class StreamMetadata
     private List<StreamColumnHandle> getSortColumnHandles(long tableId)
     {
         ImmutableList.Builder<StreamColumnHandle> builder = ImmutableList.builder();
-        for (TableColumn tableColumn : dao.listSortColumns(tableId)) {
-            builder.add(getColumnHandle(tableColumn));
+        for (TableColumn tableColumn : this.dao.listSortColumns(tableId)) {
+            builder.add(this.getColumnHandle(tableColumn));
         }
         return builder.build();
     }
@@ -273,14 +277,14 @@ public class StreamMetadata
 
         ImmutableList.Builder<StreamColumnHandle> columnHandles = ImmutableList.builder();
         ImmutableList.Builder<Type> columnTypes = ImmutableList.builder();
-        for (TableColumn column : dao.getTableColumns(tableId)) {
-            columnHandles.add(new StreamColumnHandle(connectorId, column.getColumnName(), column.getOrdinalPosition(), column.getDataType(), column.getIsAggregationField()));
+        for (TableColumn column : this.dao.getTableColumns(tableId)) {
+            columnHandles.add(new StreamColumnHandle(this.connectorId, column.getColumnName(), column.getOrdinalPosition(), column.getDataType(), column.getIsAggregationField()));
             columnTypes.add(column.getDataType());
         }
 
         String externalBatchId = session.getProperty("external_batch_id", String.class);
-        List<StreamColumnHandle> sortColumnHandles = getSortColumnHandles(tableId);
-        return new StreamInsertTableHandle(connectorId,
+        List<StreamColumnHandle> sortColumnHandles = this.getSortColumnHandles(tableId);
+        return new StreamInsertTableHandle(this.connectorId,
                 tableId,
                 columnHandles.build(),
                 columnTypes.build(),
@@ -317,17 +321,17 @@ public class StreamMetadata
                 .setLocale(ENGLISH)
                 .build();
 
-        AggregationQuery execute = queryAnalyzer.execute(session, originalSql);
+        AggregationQuery execute = this.queryAnalyzer.execute(session, originalSql);
 
         if (replace) {
             throw new PrestoException(StandardErrorCode.NOT_SUPPORTED, "View replace is not supported.");
         }
 
-        Long newTableId = dbi.inTransaction((handle, status) -> {
+        Long newTableId = this.dbi.inTransaction((handle, status) -> {
             MetadataDao dao = handle.attach(MetadataDao.class);
             long tableId = 0;
             try {
-                tableId = dao.insertTable(connectorId, viewName.getSchemaName(), viewName.getTableName(), execute.isGroupByQuery());
+                tableId = dao.insertTable(this.connectorId, viewName.getSchemaName(), viewName.getTableName(), execute.isGroupByQuery());
             }
             catch (UnableToExecuteStatementException e) {
                 if (e.getCause() instanceof SQLException) {
@@ -378,7 +382,7 @@ public class StreamMetadata
             view = new GroupByRowTable(groupedAggregations, groupByHash, positions);
         }
 
-        storageAdapter.addMaterializedView(newTableId, view);
+        this.storageAdapter.addMaterializedView(newTableId, view);
     }
 
     @Override
@@ -405,7 +409,7 @@ public class StreamMetadata
         long tableId = checkType(tableHandle, StreamTableHandle.class, "tableHandle").getTableId();
         String columnName = checkType(columnHandle, StreamColumnHandle.class, "columnHandle").getColumnName();
 
-        TableColumn tableColumn = dao.getTableColumn(tableId, columnName);
+        TableColumn tableColumn = this.dao.getTableColumn(tableId, columnName);
         if (tableColumn == null) {
             throw new PrestoException(NOT_FOUND, format("Column %s does not exist for table ID %s", columnName, tableId));
         }

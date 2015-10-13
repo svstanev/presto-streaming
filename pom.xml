@@ -196,7 +196,11 @@
             <scope>provided</scope>
         </dependency>
 
-
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>discovery</artifactId>
+            <scope>provided</scope>
+        </dependency>
 
     </dependencies>
 
